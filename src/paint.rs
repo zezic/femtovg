@@ -4,7 +4,7 @@
 use crate::geometry::Transform2D;
 use crate::{Align, Baseline, Color, FillRule, FontId, ImageId, LineCap, LineJoin};
 
-#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Default)]
+#[derive(Copy, Clone, Debug, PartialEq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub(crate) struct GradientStop(pub f32, pub Color);
 
@@ -13,9 +13,9 @@ pub(crate) struct GradientStop(pub f32, pub Color);
 impl Eq for GradientStop {}
 impl Ord for GradientStop {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if other < self {
+        if (other.0, other.1) < (self.0, self.1) {
             std::cmp::Ordering::Less
-        } else if self < other {
+        } else if (self.0, self.1) < (other.0, other.1) {
             std::cmp::Ordering::Greater
         } else {
             std::cmp::Ordering::Equal
@@ -23,8 +23,15 @@ impl Ord for GradientStop {
     }
 }
 
+impl PartialOrd for GradientStop {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 pub(crate) type MultiStopGradient = [GradientStop; 16];
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub(crate) enum GradientColors {
@@ -226,9 +233,14 @@ impl Default for Paint {
 impl Paint {
     /// Creates a new solid color paint
     pub fn color(color: Color) -> Self {
-        let mut new = Self::default();
-        new.flavor = PaintFlavor::Color(color);
-        new
+        Paint::with_flavor(PaintFlavor::Color(color))
+    }
+
+    fn with_flavor(flavor: PaintFlavor) -> Self {
+        Paint {
+            flavor,
+            ..Default::default()
+        }
     }
 
     /// Creates a new image pattern paint.
@@ -253,8 +265,7 @@ impl Paint {
     /// canvas.fill_path(&mut path, fill_paint);
     /// ```
     pub fn image(id: ImageId, cx: f32, cy: f32, width: f32, height: f32, angle: f32, alpha: f32) -> Self {
-        let mut new = Self::default();
-        new.flavor = PaintFlavor::Image {
+        Paint::with_flavor(PaintFlavor::Image {
             id,
             cx,
             cy,
@@ -262,8 +273,7 @@ impl Paint {
             height,
             angle,
             alpha,
-        };
-        new
+        })
     }
 
     /// Creates and returns a linear gradient paint.
@@ -289,17 +299,13 @@ impl Paint {
         start_color: Color,
         end_color: Color,
     ) -> Self {
-        let mut new = Self::default();
-
-        new.flavor = PaintFlavor::LinearGradient {
+        Paint::with_flavor(PaintFlavor::LinearGradient {
             start_x,
             start_y,
             end_x,
             end_y,
             colors: GradientColors::TwoStop { start_color, end_color },
-        };
-
-        new
+        })
     }
     /// Creates and returns a linear gradient paint with two or more stops.
     ///
@@ -323,19 +329,16 @@ impl Paint {
     /// canvas.fill_path(&mut path, bg);
     /// ```
     pub fn linear_gradient_stops(start_x: f32, start_y: f32, end_x: f32, end_y: f32, stops: &[(f32, Color)]) -> Self {
-        let mut new = Self::default();
-
-        new.flavor = PaintFlavor::LinearGradient {
+        Paint::with_flavor(PaintFlavor::LinearGradient {
             start_x,
             start_y,
             end_x,
             end_y,
             colors: GradientColors::from_stops(stops),
-        };
-
-        new
+        })
     }
 
+    #[allow(clippy::too_many_arguments)]
     /// Creates and returns a box gradient.
     ///
     /// Box gradient is a feathered rounded rectangle, it is useful for rendering
@@ -375,9 +378,7 @@ impl Paint {
         inner_color: Color,
         outer_color: Color,
     ) -> Self {
-        let mut new = Self::default();
-
-        new.flavor = PaintFlavor::BoxGradient {
+        Paint::with_flavor(PaintFlavor::BoxGradient {
             x,
             y,
             width,
@@ -388,9 +389,7 @@ impl Paint {
                 start_color: inner_color,
                 end_color: outer_color,
             },
-        };
-
-        new
+        })
     }
 
     /// Creates and returns a radial gradient.
@@ -426,9 +425,7 @@ impl Paint {
         inner_color: Color,
         outer_color: Color,
     ) -> Self {
-        let mut new = Self::default();
-
-        new.flavor = PaintFlavor::RadialGradient {
+        Paint::with_flavor(PaintFlavor::RadialGradient {
             cx,
             cy,
             in_radius,
@@ -437,9 +434,7 @@ impl Paint {
                 start_color: inner_color,
                 end_color: outer_color,
             },
-        };
-
-        new
+        })
     }
 
     /// Creates and returns a multi-stop radial gradient.
@@ -473,17 +468,13 @@ impl Paint {
     /// canvas.fill_path(&mut path, bg);
     /// ```
     pub fn radial_gradient_stops(cx: f32, cy: f32, in_radius: f32, out_radius: f32, stops: &[(f32, Color)]) -> Self {
-        let mut new = Self::default();
-
-        new.flavor = PaintFlavor::RadialGradient {
+        Paint::with_flavor(PaintFlavor::RadialGradient {
             cx,
             cy,
             in_radius,
             out_radius,
             colors: GradientColors::from_stops(stops),
-        };
-
-        new
+        })
     }
 
     /// Creates a new solid color paint

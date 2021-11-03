@@ -292,7 +292,7 @@ where
         let mut canvas = Self {
             width: 0,
             height: 0,
-            renderer: renderer,
+            renderer,
             text_context: Default::default(),
             glyph_atlas: Default::default(),
             emphemeral_glyph_atlas: Default::default(),
@@ -320,7 +320,7 @@ where
         let mut canvas = Self {
             width: 0,
             height: 0,
-            renderer: renderer,
+            renderer,
             text_context: text_context.0,
             glyph_atlas: Default::default(),
             emphemeral_glyph_atlas: Default::default(),
@@ -648,6 +648,7 @@ where
         self.state_mut().transform = Transform2D::identity();
     }
 
+    #[allow(clippy::many_single_char_names)]
     /// Premultiplies current coordinate system by specified matrix.
     ///
     /// The parameters are interpreted as matrix as follows:
@@ -838,9 +839,11 @@ where
 
             CommandType::ConvexFill { params }
         } else {
-            let mut stencil_params = Params::default();
-            stencil_params.stroke_thr = -1.0;
-            stencil_params.shader_type = ShaderType::Stencil.to_f32();
+            let stencil_params = Params {
+                stroke_thr: -1.0,
+                shader_type: ShaderType::Stencil.to_f32(),
+                ..Params::default()
+            };
 
             let fill_params = Params::new(
                 &self.images,
@@ -868,7 +871,7 @@ where
             cmd.image = self
                 .gradients
                 .lookup_or_add(*stops, &mut self.images, &mut self.renderer)
-                .map_or(None, |id| Some(id));
+                .ok();
         }
 
         // All verts from all shapes are kept in a single buffer here in the canvas.
@@ -1022,7 +1025,7 @@ where
             cmd.image = self
                 .gradients
                 .lookup_or_add(*stops, &mut self.images, &mut self.renderer)
-                .map_or(None, |id| Some(id));
+                .ok();
         }
 
         // All verts from all shapes are kept in a single buffer here in the canvas.
@@ -1210,9 +1213,7 @@ where
             };
 
             let atlas = if bitmap_glyphs && need_direct_rendering {
-                self.emphemeral_glyph_atlas
-                    .get_or_insert_with(|| Default::default())
-                    .clone()
+                self.emphemeral_glyph_atlas.get_or_insert_with(Default::default).clone()
             } else {
                 self.glyph_atlas.clone()
             };
@@ -1262,7 +1263,7 @@ where
             cmd.image = self
                 .gradients
                 .lookup_or_add(*stops, &mut self.images, &mut self.renderer)
-                .map_or(None, |id| Some(id));
+                .ok();
         }
 
         cmd.triangles_verts = Some((self.verts.len(), verts.len()));
