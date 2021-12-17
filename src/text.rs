@@ -124,6 +124,7 @@ pub(crate) struct RenderedGlyph {
     bearing_y: i32,
     atlas_x: u32,
     atlas_y: u32,
+    #[allow(dead_code)]
     padding: u32,
     color_glyph: bool,
 }
